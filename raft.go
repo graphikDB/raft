@@ -7,9 +7,11 @@ import (
 	"github.com/graphikDB/raft/fsm"
 	"github.com/graphikDB/raft/storage"
 	"github.com/hashicorp/raft"
+	"github.com/pkg/errors"
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 type Raft struct {
@@ -63,6 +65,13 @@ func NewRaft(fsm *fsm.FSM, opts ...Opt) (*Raft, error) {
 			},
 		}
 		ra.BootstrapCluster(configuration)
+	} else {
+		if len(options.servers) > 0 {
+			configuration := raft.Configuration{
+				Servers: options.servers,
+			}
+			ra.BootstrapCluster(configuration)
+		}
 	}
 	return &Raft{
 		opts: options,
@@ -85,7 +94,7 @@ func (s *Raft) Servers() ([]raft.Server, error) {
 func (s *Raft) Join(nodeID, addr string) error {
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
-		return err
+		return errors.Wrap(err, "failed to get raft configuration")
 	}
 
 	for _, srv := range configFuture.Configuration().Servers {
@@ -103,10 +112,18 @@ func (s *Raft) Join(nodeID, addr string) error {
 			}
 		}
 	}
-
-	f := s.raft.AddVoter(raft.ServerID(nodeID), raft.ServerAddress(addr), 0, 0)
-	if f.Error() != nil {
-		return f.Error()
+	var success = false
+	var err error
+	for x := 0; x < 10; x++ {
+		f := s.raft.AddVoter(raft.ServerID(nodeID), raft.ServerAddress(addr), 0, 0)
+		if err = f.Error(); err == nil {
+			success = true
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if !success && err != nil {
+		return errors.Wrap(err, "failed to add raft voter")
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package raft
 
 import (
 	"fmt"
+	"github.com/hashicorp/raft"
 	"os"
 	"time"
 )
@@ -15,6 +16,7 @@ type Options struct {
 	timeout                  time.Duration
 	retainSnapshots          int
 	restoreSnapshotOnRestart bool
+	servers                  []raft.Server
 }
 
 func (o *Options) setDefaults() {
@@ -87,5 +89,11 @@ func WithRaftDir(dir string) Opt {
 func WithRestoreSnapshotOnRestart(restore bool) Opt {
 	return func(o *Options) {
 		o.restoreSnapshotOnRestart = restore
+	}
+}
+
+func WithServers(servers ...raft.Server) Opt {
+	return func(o *Options) {
+		o.servers = append(o.servers, servers...)
 	}
 }

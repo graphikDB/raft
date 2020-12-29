@@ -92,8 +92,15 @@ func WithRestoreSnapshotOnRestart(restore bool) Opt {
 	}
 }
 
-func WithServers(servers ...raft.Server) Opt {
+func WithServers(servers map[string]string) Opt {
 	return func(o *Options) {
-		o.servers = append(o.servers, servers...)
+		var rservers []raft.Server
+		for k, v := range servers {
+			rservers = append(rservers, raft.Server{
+				ID:      raft.ServerID(k),
+				Address: raft.ServerAddress(v),
+			})
+		}
+		o.servers = append(o.servers, rservers...)
 	}
 }

@@ -3,9 +3,9 @@ package raft
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
 	"github.com/graphikDB/raft/fsm"
 	"github.com/graphikDB/raft/storage"
+	transport2 "github.com/graphikDB/raft/transport"
 	"github.com/hashicorp/raft"
 	"github.com/pkg/errors"
 	"net"
@@ -19,7 +19,7 @@ type Raft struct {
 	opts *Options
 }
 
-func NewRaft(fsm *fsm.FSM, opts ...Opt) (*Raft, error) {
+func NewRaft(fsm *fsm.FSM, lis net.Listener, opts ...Opt) (*Raft, error) {
 	if err := fsm.Validate(); err != nil {
 		return nil, err
 	}
@@ -37,13 +37,7 @@ func NewRaft(fsm *fsm.FSM, opts ...Opt) (*Raft, error) {
 	if options.electionTimeout != 0 {
 		config.ElectionTimeout = options.electionTimeout
 	}
-	bindAddr := fmt.Sprintf("localhost:%v", options.port)
-	transport, err := raft.NewTCPTransport(bindAddr, options.advertise, options.maxPool, options.timeout, os.Stderr)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the snapshot store. This allows the Raft to truncate the log.
+	transport := transport2.NewNetworkTransport(lis, options.advertise, options.maxPool, options.timeout, os.Stderr)
 	snapshots, err := raft.NewFileSnapshotStore(options.raftDir, options.retainSnapshots, os.Stderr)
 	if err != nil {
 		return nil, err

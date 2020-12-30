@@ -17,6 +17,8 @@ type Options struct {
 	retainSnapshots          int
 	restoreSnapshotOnRestart bool
 	advertise                net.Addr
+	electionTimeout          time.Duration
+	heartbeatTimeout         time.Duration
 }
 
 func (o *Options) setDefaults() {
@@ -65,6 +67,18 @@ func WithListenPort(port int) Opt {
 func WithTimeout(timeout time.Duration) Opt {
 	return func(o *Options) {
 		o.timeout = timeout
+	}
+}
+
+func WithElectionTimeout(timeout time.Duration) Opt {
+	return func(o *Options) {
+		o.electionTimeout = timeout
+	}
+}
+
+func WithHeartbeatTimeout(timeout time.Duration) Opt {
+	return func(o *Options) {
+		o.heartbeatTimeout = timeout
 	}
 }
 

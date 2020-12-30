@@ -31,7 +31,12 @@ func NewRaft(fsm *fsm.FSM, opts ...Opt) (*Raft, error) {
 	config := raft.DefaultConfig()
 	config.NoSnapshotRestoreOnStart = options.restoreSnapshotOnRestart
 	config.LocalID = raft.ServerID(options.peerID)
-
+	if options.heartbeatTimeout != 0 {
+		config.HeartbeatTimeout = options.heartbeatTimeout
+	}
+	if options.electionTimeout != 0 {
+		config.ElectionTimeout = options.electionTimeout
+	}
 	bindAddr := fmt.Sprintf("localhost:%v", options.port)
 	transport, err := raft.NewTCPTransport(bindAddr, options.advertise, options.maxPool, options.timeout, os.Stderr)
 	if err != nil {

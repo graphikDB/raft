@@ -2,6 +2,7 @@ package raft
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"time"
 )
@@ -15,6 +16,7 @@ type Options struct {
 	timeout                  time.Duration
 	retainSnapshots          int
 	restoreSnapshotOnRestart bool
+	advertise                net.Addr
 }
 
 func (o *Options) setDefaults() {
@@ -87,5 +89,11 @@ func WithRaftDir(dir string) Opt {
 func WithRestoreSnapshotOnRestart(restore bool) Opt {
 	return func(o *Options) {
 		o.restoreSnapshotOnRestart = restore
+	}
+}
+
+func WithAdvertiseAddr(addr net.Addr) Opt {
+	return func(o *Options) {
+		o.advertise = addr
 	}
 }

@@ -32,7 +32,7 @@ func NewRaft(fsm *fsm.FSM, opts ...Opt) (*Raft, error) {
 	config.LocalID = raft.ServerID(options.peerID)
 
 	bindAddr := fmt.Sprintf("localhost:%v", options.port)
-	transport, err := raft.NewTCPTransport(bindAddr, nil, options.maxPool, options.timeout, os.Stderr)
+	transport, err := raft.NewTCPTransport(bindAddr, options.advertise, options.maxPool, options.timeout, os.Stderr)
 	if err != nil {
 		return nil, err
 	}

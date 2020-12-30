@@ -8,6 +8,7 @@ import (
 	"github.com/graphikDB/raft/storage"
 	"github.com/hashicorp/raft"
 	"github.com/pkg/errors"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -80,6 +81,10 @@ func (s *Raft) Servers() ([]raft.Server, error) {
 }
 
 func (s *Raft) Join(nodeID, addr string) error {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse voter %s address", nodeID)
+	}
 	//configFuture := s.raft.GetConfiguration()
 	//if err := configFuture.Error(); err != nil {
 	//	return errors.Wrap(err, "failed to get raft configuration")
@@ -102,7 +107,7 @@ func (s *Raft) Join(nodeID, addr string) error {
 	//}
 	errs := 0
 	for {
-		f := s.raft.AddVoter(raft.ServerID(nodeID), raft.ServerAddress(addr), 0, 0)
+		f := s.raft.AddVoter(raft.ServerID(nodeID), raft.ServerAddress(tcpAddr.String()), 0, 0)
 		if err := f.Error(); err != nil {
 			errs++
 			if errs >= 10 {

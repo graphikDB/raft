@@ -8,7 +8,6 @@ import (
 	"github.com/graphikDB/raft/storage"
 	"github.com/hashicorp/raft"
 	"github.com/pkg/errors"
-	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -32,12 +31,8 @@ func NewRaft(fsm *fsm.FSM, opts ...Opt) (*Raft, error) {
 	config.NoSnapshotRestoreOnStart = options.restoreSnapshotOnRestart
 	config.LocalID = raft.ServerID(options.peerID)
 
-	lisAddr := fmt.Sprintf("localhost:%v", options.port)
-	addr, err := net.ResolveTCPAddr("tcp", lisAddr)
-	if err != nil {
-		return nil, err
-	}
-	transport, err := raft.NewTCPTransport(lisAddr, addr, options.maxPool, options.timeout, os.Stderr)
+	bindAddr := fmt.Sprintf("localhost:%v", options.port)
+	transport, err := raft.NewTCPTransport(bindAddr, nil, options.maxPool, options.timeout, os.Stderr)
 	if err != nil {
 		return nil, err
 	}
@@ -65,13 +60,6 @@ func NewRaft(fsm *fsm.FSM, opts ...Opt) (*Raft, error) {
 			},
 		}
 		ra.BootstrapCluster(configuration)
-	} else {
-		if len(options.servers) > 0 {
-			configuration := raft.Configuration{
-				Servers: options.servers,
-			}
-			ra.BootstrapCluster(configuration)
-		}
 	}
 	return &Raft{
 		opts: options,
@@ -92,38 +80,39 @@ func (s *Raft) Servers() ([]raft.Server, error) {
 }
 
 func (s *Raft) Join(nodeID, addr string) error {
-	configFuture := s.raft.GetConfiguration()
-	if err := configFuture.Error(); err != nil {
-		return errors.Wrap(err, "failed to get raft configuration")
-	}
-
-	for _, srv := range configFuture.Configuration().Servers {
-		if srv.ID == raft.ServerID(nodeID) || srv.Address == raft.ServerAddress(addr) {
-			// However if *both* the ID and the address are the same, then nothing -- not even
-			// a join operation -- is needed.
-			if srv.Address == raft.ServerAddress(addr) && srv.ID == raft.ServerID(nodeID) {
-				// already a member
-				return nil
-			}
-
-			future := s.raft.RemoveServer(srv.ID, 0, 0)
-			if err := future.Error(); err != nil {
-				return fmt.Errorf("error removing existing node %s at %s: %s", nodeID, addr, err)
-			}
-		}
-	}
-	var success = false
-	var err error
-	for x := 0; x < 10; x++ {
+	//configFuture := s.raft.GetConfiguration()
+	//if err := configFuture.Error(); err != nil {
+	//	return errors.Wrap(err, "failed to get raft configuration")
+	//}
+	//
+	//for _, srv := range configFuture.Configuration().Servers {
+	//	if srv.ID == raft.ServerID(nodeID) || srv.Address == raft.ServerAddress(addr) {
+	//		// However if *both* the ID and the address are the same, then nothing -- not even
+	//		// a join operation -- is needed.
+	//		if srv.Address == raft.ServerAddress(addr) && srv.ID == raft.ServerID(nodeID) {
+	//			// already a member
+	//			return nil
+	//		}
+	//
+	//		future := s.raft.RemoveServer(srv.ID, 0, 0)
+	//		if err := future.Error(); err != nil {
+	//			return fmt.Errorf("error removing existing node %s at %s: %s", nodeID, addr, err)
+	//		}
+	//	}
+	//}
+	errs := 0
+	for {
 		f := s.raft.AddVoter(raft.ServerID(nodeID), raft.ServerAddress(addr), 0, 0)
-		if err = f.Error(); err == nil {
-			success = true
+		if err := f.Error(); err != nil {
+			errs++
+			if errs >= 10 {
+				return errors.Wrap(err, "failed to add raft voter")
+			}
+			time.Sleep(200 * time.Millisecond)
+			continue
+		} else {
 			break
 		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	if !success && err != nil {
-		return errors.Wrap(err, "failed to add raft voter")
 	}
 	return nil
 }

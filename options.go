@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"time"
@@ -11,7 +10,6 @@ type Options struct {
 	raftDir                  string
 	peerID                   string
 	isLeader                 bool
-	port                     int
 	maxPool                  int
 	timeout                  time.Duration
 	retainSnapshots          int
@@ -22,9 +20,6 @@ type Options struct {
 }
 
 func (o *Options) setDefaults() {
-	if o.port == 0 {
-		o.port = 7810
-	}
 	if o.maxPool <= 0 {
 		o.maxPool = 5
 	}
@@ -36,7 +31,7 @@ func (o *Options) setDefaults() {
 	}
 	if o.peerID == "" {
 		h, _ := os.Hostname()
-		o.peerID = hash([]byte(fmt.Sprintf("%s%v", h, o.port)))
+		o.peerID = hash([]byte(h))
 	}
 	if o.raftDir == "" {
 		o.raftDir = "/tmp/graphik/raft"
@@ -55,12 +50,6 @@ func WithPeerID(peerID string) Opt {
 func WithIsLeader(isLeader bool) Opt {
 	return func(o *Options) {
 		o.isLeader = isLeader
-	}
-}
-
-func WithListenPort(port int) Opt {
-	return func(o *Options) {
-		o.port = port
 	}
 }
 
